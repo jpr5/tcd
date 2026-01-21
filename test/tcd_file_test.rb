@@ -278,13 +278,49 @@ class TCDFileTest < Minitest::Test
                 refute simple_sub.current?
             end
 
-            # Find a non-simple subordinate (current station)
-            current_sub = db.subordinate_stations.find { |s| !s.simple? }
+            # Find a non-simple subordinate with different high/low corrections (tide station)
+            # These are tide stations that happen to have asymmetric corrections
+            tide_with_corrections = db.subordinate_stations.find { |s|
+                !s.simple? && s.flood_begins.nil? && s.ebb_begins.nil?
+            }
+            if tide_with_corrections
+                refute tide_with_corrections.simple?
+                assert tide_with_corrections.tide?, "Station with asymmetric corrections but no current data should be tide station"
+                refute tide_with_corrections.current?
+            end
+
+            # Find an actual current station (has flood/ebb or direction data)
+            current_sub = db.subordinate_stations.find { |s|
+                s.flood_begins || s.ebb_begins || s.min_direction || s.max_direction
+            }
             if current_sub
-                refute current_sub.simple?
-                assert current_sub.current?
+                assert current_sub.current?, "Station with flood/ebb/direction data should be current station"
                 refute current_sub.tide?
             end
+        end
+    end
+
+    # Regression test for tide/current classification bug
+    # Some subordinate stations have different high/low corrections but no current data
+    # These should be classified as tide stations, not current stations
+    def test_subordinate_tide_with_asymmetric_corrections
+        TCD.open(TCD_TEST_FILE) do |db|
+            # Find subordinate stations with different time/level corrections but no current data
+            asymmetric_tides = db.subordinate_stations.select { |s|
+                (s.max_time_add != s.min_time_add ||
+                 s.max_level_multiply != s.min_level_multiply) &&
+                s.flood_begins.nil? &&
+                s.ebb_begins.nil? &&
+                s.min_direction.nil? &&
+                s.max_direction.nil?
+            }
+
+            skip "No asymmetric tide stations in test file" if asymmetric_tides.empty?
+
+            sample = asymmetric_tides.first
+            assert sample.tide?, "#{sample.name} should be tide station (no current indicators)"
+            refute sample.current?, "#{sample.name} should not be current station"
+            refute sample.simple?, "#{sample.name} should not be simple (has asymmetric corrections)"
         end
     end
 end

@@ -90,19 +90,26 @@ module TCD
 
         # Check if this station has current (not tide) data.
         # Current stations have direction fields and/or flood/ebb slack times.
+        # These are the definitive indicators of current data.
         #
         # @return [Boolean] true if this is a current station
         def current?
-            return false if reference?
-            !simple?
+            # Reference stations with direction data are current stations
+            return true if min_direction || max_direction
+
+            # Subordinate stations with flood/ebb times are current stations
+            return true if flood_begins || ebb_begins
+
+            false
         end
 
         # Check if this station has tide (not current) data.
-        # Tide stations are either reference stations or simple subordinates.
+        # Tide stations do not have current-specific indicators (direction, flood/ebb).
+        # Note: subordinate tide stations may have different high/low corrections.
         #
         # @return [Boolean] true if this is a tide station
         def tide?
-            reference? || simple?
+            !current?
         end
 
         def to_s
