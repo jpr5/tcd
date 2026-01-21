@@ -1,0 +1,178 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/tcd"
+
+def format_number(n)
+    n.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
+end
+
+def format_time_offset(minutes)
+    return "N/A" if minutes.nil?
+    sign = minutes < 0 ? "-" : "+"
+    minutes = minutes.abs
+    hours = minutes / 60
+    mins = minutes % 60
+    "#{sign}#{hours}:%02d" % mins
+end
+
+if ARGV.empty?
+    puts "Usage: tcd-info <file.tcd>"
+    puts "       tcd-info <file.tcd> --stations [limit]"
+    puts "       tcd-info <file.tcd> --search <query>"
+    puts "       tcd-info <file.tcd> --constituents"
+    exit 1
+end
+
+path = ARGV[0]
+
+unless File.exist?(path)
+    puts "Error: File not found: #{path}"
+    exit 1
+end
+
+TCD.open(path) do |db|
+    filename = File.basename(path)
+
+    puts "TCD Database: #{filename}"
+    puts "=" * (14 + filename.length)
+    puts
+    puts "Version: #{db.version}"
+    puts "Last Modified: #{db.last_modified}"
+    puts "Format: v#{db.header.major_rev}.#{db.header.minor_rev}"
+    puts
+
+    stats = db.stats
+
+    puts "Database Statistics:"
+    puts "  Total Stations: #{format_number(stats[:total_stations])}"
+    puts "  Reference Stations: #{format_number(stats[:reference_stations])}"
+    puts "  Subordinate Stations: #{format_number(stats[:subordinate_stations])}"
+    puts "  Constituents: #{stats[:constituents]}"
+    puts "  Year Range: #{stats[:year_range].first}-#{stats[:year_range].last} (#{stats[:year_range].size} years)"
+    puts "  Countries: #{stats[:countries]}"
+    puts "  Timezones: #{stats[:timezones]}"
+    puts "  Datums: #{stats[:datums]}"
+    puts "  File Size: #{format_number(stats[:file_size])} bytes"
+    puts
+
+    # Handle command-line options
+    if ARGV.include?("--constituents")
+        puts "Constituents (by speed):"
+        puts "-" * 50
+
+        # Sort by speed descending
+        sorted = db.constituents.sort_by { |c| -c.speed }
+        sorted.first(20).each do |c|
+            puts "  %-10s %12.7f °/hr" % [c.name, c.speed]
+        end
+        if sorted.size > 20
+            puts "  ... and #{sorted.size - 20} more"
+        end
+        puts
+
+    elsif ARGV.include?("--search")
+        idx = ARGV.index("--search")
+        query = ARGV[idx + 1]
+        if query.nil?
+            puts "Error: --search requires a query string"
+            exit 1
+        end
+
+        puts "Searching for: #{query}"
+        puts "-" * 50
+
+        results = db.find_stations(query)
+        if results.empty?
+            puts "  No stations found matching '#{query}'"
+        else
+            results.first(20).each_with_index do |s, i|
+                puts
+                puts "  #{i + 1}. #{s.name}"
+                type_str = s.reference? ? "Reference" : "Subordinate"
+                puts "     Type: #{type_str} | Lat: #{format('%.5f', s.latitude)} | Lon: #{format('%.5f', s.longitude)}"
+                puts "     Timezone: #{s.tzfile} | Country: #{s.country}"
+                if s.reference?
+                    puts "     Datum: #{s.datum} | Active Constituents: #{s.active_constituents}"
+                else
+                    puts "     Time Offsets: High #{format_time_offset(s.max_time_add)}, Low #{format_time_offset(s.min_time_add)}"
+                    puts "     Level Multiply: High ×#{format('%.3f', s.max_level_multiply)}, Low ×#{format('%.3f', s.min_level_multiply)}"
+                end
+            end
+            if results.size > 20
+                puts
+                puts "  ... and #{results.size - 20} more results"
+            end
+        end
+        puts
+
+    elsif ARGV.include?("--stations")
+        idx = ARGV.index("--stations")
+        limit = (ARGV[idx + 1] || "10").to_i
+
+        puts "Sample Reference Stations:"
+        puts "-" * 50
+
+        ref_stations = db.reference_stations.first(limit)
+        ref_stations.each_with_index do |s, i|
+            puts
+            puts "  #{i + 1}. #{s.name}"
+            puts "     Lat: #{format('%.5f', s.latitude)} | Lon: #{format('%.5f', s.longitude)}"
+            puts "     Timezone: #{s.tzfile} | Country: #{s.country}"
+            puts "     Datum: #{s.datum} | Offset: #{format('%.4f', s.datum_offset)} #{s.level_units}"
+            puts "     Active Constituents: #{s.active_constituents} of #{db.constituent_count}"
+        end
+
+        puts
+        puts "Sample Subordinate Stations:"
+        puts "-" * 50
+
+        sub_stations = db.subordinate_stations.first(limit)
+        sub_stations.each_with_index do |s, i|
+            puts
+            puts "  #{i + 1}. #{s.name}"
+            puts "     Lat: #{format('%.5f', s.latitude)} | Lon: #{format('%.5f', s.longitude)}"
+            puts "     Reference: Station ##{s.reference_station}"
+            puts "     Time Offsets: High #{format_time_offset(s.max_time_add)}, Low #{format_time_offset(s.min_time_add)}"
+            puts "     Level Add: High #{format('%+.3f', s.max_level_add)}, Low #{format('%+.3f', s.min_level_add)}"
+            puts "     Level Multiply: High ×#{format('%.3f', s.max_level_multiply)}, Low ×#{format('%.3f', s.min_level_multiply)}"
+        end
+        puts
+
+    else
+        # Default: show summary with a few sample stations
+        puts "Sample Reference Stations:"
+        puts "-" * 50
+
+        db.reference_stations.first(3).each_with_index do |s, i|
+            puts
+            puts "  #{i + 1}. #{s.name}"
+            puts "     Type: Reference | Lat: #{format('%.5f', s.latitude)} | Lon: #{format('%.5f', s.longitude)}"
+            puts "     Timezone: #{s.tzfile} | Country: #{s.country}"
+            puts "     Datum: #{s.datum} | Active Constituents: #{s.active_constituents}"
+        end
+
+        puts
+        puts "Sample Subordinate Stations:"
+        puts "-" * 50
+
+        db.subordinate_stations.first(3).each_with_index do |s, i|
+            puts
+            puts "  #{i + 1}. #{s.name}"
+            puts "     Type: Subordinate | Lat: #{format('%.5f', s.latitude)} | Lon: #{format('%.5f', s.longitude)}"
+            puts "     Reference: Station ##{s.reference_station}"
+            puts "     Time Offsets: High #{format_time_offset(s.max_time_add)}, Low #{format_time_offset(s.min_time_add)}"
+        end
+
+        puts
+        puts "Top Constituents by Speed:"
+        puts "-" * 50
+
+        db.constituents.sort_by { |c| -c.speed }.first(5).each do |c|
+            puts "  %-6s %12.7f °/hr" % [c.name, c.speed]
+        end
+
+        puts
+        puts "Use --stations, --constituents, or --search <query> for more details."
+    end
+end

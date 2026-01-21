@@ -1,0 +1,23 @@
+# Gem build artifacts
+*.gem
+pkg/
+
+# Bundle
+.bundle/
+vendor/bundle/
+Gemfile.lock
+
+# Test artifacts
+coverage/
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# TCD data files (large, should use LFS or be downloaded separately)
+data/
