@@ -157,6 +157,23 @@ class TCDFileTest < Minitest::Test
         end
     end
 
+    # TCD files store timezone strings with a leading colon (e.g., ":America/New_York")
+    # The TCD gem should strip this colon to return standard IANA timezone names
+    def test_timezone_strips_leading_colon
+        TCD.open(TCD_TEST_FILE) do |db|
+            # Find a station with a known timezone
+            station = db.stations.find { |s| s.tzfile && s.tzfile.length > 0 }
+            refute_nil station, "Should find at least one station with timezone"
+
+            # Timezone should not start with colon
+            refute station.tzfile.start_with?(":"), "Timezone should not have leading colon: #{station.tzfile}"
+
+            # Timezone should be a valid IANA format (e.g., America/New_York)
+            assert_match %r{^[A-Z][a-z_]+/[A-Z][a-z_]+}, station.tzfile,
+                         "Timezone should be valid IANA format: #{station.tzfile}"
+        end
+    end
+
     def test_find_stations
         TCD.open(TCD_TEST_FILE) do |db|
             results = db.find_stations("San Francisco")

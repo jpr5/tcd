@@ -40,8 +40,14 @@ module TCD
         def legalese_text(idx);  safe_lookup(@legalese, idx); end
         def datum(idx);          safe_lookup(@datums, idx); end
         def constituent(idx);    safe_lookup(@constituents, idx); end
-        def timezone(idx);       safe_lookup(@timezones, idx); end
         def country(idx);        safe_lookup(@countries, idx); end
+
+        # Timezone strings in TCD files have a leading colon (e.g., ":America/New_York")
+        # Strip it to return standard IANA timezone names
+        def timezone(idx)
+            tz = safe_lookup(@timezones, idx)
+            tz&.sub(/^:/, '')
+        end
 
         private
 
