@@ -1,4 +1,4 @@
-# TCD - Tidal Constituent Database Reader
+# TCD - Tidal Constituent Database Reader [![Tests](https://github.com/jpr5/tcd/actions/workflows/test.yml/badge.svg)](https://github.com/jpr5/tcd/actions/workflows/test.yml)
 
 A pure Ruby gem for reading TCD (Tidal Constituent Database) files used by [XTide](https://flaterco.com/xtide/) for tide predictions.
 
