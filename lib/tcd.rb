@@ -3,6 +3,7 @@
 require_relative "tcd/version"
 require_relative "tcd/reader"
 require_relative "tcd/inference"
+require_relative "tcd/writer"
 
 module TCD
     class << self
