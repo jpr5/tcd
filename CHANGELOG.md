@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Verify the header CRC-32 on open, as libtcd does; a mismatch raises `TCD::ChecksumError` (`Reader.new(path, verify_checksum: false)` skips it)
+
 ### Fixed
 
 - Read the equilibrium and node-factor tables of a TCD whose constituent count is not a multiple of 8 (each table starts on a byte boundary, as libtcd writes it)

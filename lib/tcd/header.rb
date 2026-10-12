@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "zlib"
+
 module TCD
     # Parser for TCD ASCII header section.
     # The header contains [KEY] = VALUE pairs defining all encoding parameters.
@@ -104,6 +106,36 @@ module TCD
         def countries;         @params[:countries]; end
         def country_size;      @params[:country_size]; end
 
+        # CRC-32 of the ASCII header padded to header_size bytes, as libtcd's
+        # header_checksum() computes it.
+        def compute_checksum(io)
+            io.seek(0)
+            data = io.read(header_size)
+            if data.nil? || data.bytesize < header_size
+                raise FormatError, "file is shorter than its #{header_size}-byte header"
+            end
+            Zlib.crc32(data)
+        end
+
+        # The CRC-32 stored in the 4 bytes after the header (big-endian).
+        def stored_checksum(io)
+            io.seek(header_size)
+            bytes = io.read(4)
+            raise FormatError, "file ends before the header checksum" if bytes.nil? || bytes.bytesize < 4
+            bytes.unpack1("N")
+        end
+
+        # Raises ChecksumError unless the stored checksum matches the header.
+        # libtcd refuses to open such a file.
+        def verify_checksum!(io)
+            stored = stored_checksum(io)
+            computed = compute_checksum(io)
+            return if stored == computed
+
+            raise ChecksumError, format("header checksum mismatch: stored 0x%08x, computed 0x%08x " \
+                                        "(the ASCII header was modified or the file is corrupt)", stored, computed)
+        end
+
         private
 
         def parse(io)
@@ -146,4 +178,5 @@ module TCD
     end
 
     class FormatError < StandardError; end
+    class ChecksumError < FormatError; end
 end
