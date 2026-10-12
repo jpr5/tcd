@@ -147,7 +147,7 @@ writer.add_station(name: "Example", latitude: 59.9, longitude: 10.75, tzfile: "E
 writer.write("example.tcd")
 ```
 
-Values that do not fit their field (for example a name over 89 bytes in ISO-8859-1) raise `ArgumentError`.
+Values that do not fit their field (for example a name over 89 bytes in ISO-8859-1) raise `ArgumentError`. `zone_offset` is a signed HHMM integer (`-500` for UTC-5), not minutes; epochs must be 0–360 degrees; dates are 0 or YYYYMMDD.
 
 ### Command Line Tool
 
