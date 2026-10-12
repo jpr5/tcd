@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `TCD::Writer`: writes TCD files that libtcd and XTide read (`Writer.from_reader(reader)` or plain data)
 - Verify the header CRC-32 on open, as libtcd does; a mismatch raises `TCD::ChecksumError` (`Reader.new(path, verify_checksum: false)` skips it)
 
 ### Fixed

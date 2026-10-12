@@ -127,6 +127,28 @@ TCD.open("harmonics.tcd") do |db|
 end
 ```
 
+### Writing TCD Files
+
+`TCD::Writer` writes a file that libtcd and XTide read. Copy a file you read:
+
+```ruby
+TCD.open("harmonics.tcd") { |db| TCD::Writer.from_reader(db).write("copy.tcd") }
+```
+
+Or build one from plain data (units as the reader returns them; time offsets in minutes):
+
+```ruby
+writer = TCD::Writer.new(
+    constituents: [{ name: "M2", speed: 28.9841042, equilibrium: [10.5, 200.25], node_factors: [0.98, 1.02] }],
+    start_year: 2025
+)
+writer.add_station(name: "Example", latitude: 59.9, longitude: 10.75, tzfile: "Europe/Oslo",
+                   level_units: "meters", amplitudes: [0.5], epochs: [120.0])
+writer.write("example.tcd")
+```
+
+Values that do not fit their field (for example a name over 89 bytes in ISO-8859-1) raise `ArgumentError`.
+
 ### Command Line Tool
 
 The gem includes a `tcd-info` command for exploring TCD files:
