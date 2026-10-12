@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Read the equilibrium and node-factor tables of a TCD whose constituent count is not a multiple of 8 (each table starts on a byte boundary, as libtcd writes it)
+
 ## [1.0.2] - 2026-01-20
 
 ### Fixed
