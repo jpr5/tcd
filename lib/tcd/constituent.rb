@@ -73,8 +73,15 @@ module TCD
             # Read speeds for all constituents
             speeds = read_speeds(num_constituents)
 
+            # libtcd writes each table into its own whole number of bytes, so skip the
+            # padding bits that end the previous table (none when the bit count is a
+            # multiple of 8, e.g. 176 constituents; some for 178).
+            @bit.align
+
             # Read equilibrium arguments: constituents × years matrix
             equilibriums = read_equilibriums(num_constituents, num_years)
+
+            @bit.align
 
             # Read node factors: constituents × years matrix
             node_factors = read_node_factors(num_constituents, num_years)

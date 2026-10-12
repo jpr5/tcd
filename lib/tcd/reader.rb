@@ -12,8 +12,11 @@ module TCD
     class Reader
         attr_reader :path, :header, :lookup_tables, :constituent_data
 
-        def initialize(path)
+        # verify_checksum: false skips the header CRC-32 check (on by default, as
+        # in libtcd). Only for files known to carry no valid checksum.
+        def initialize(path, verify_checksum: true)
             @path = path
+            @verify_checksum = verify_checksum
             @file = File.open(path, "rb")
             @stations_loaded = false
             @stations = []
@@ -193,6 +196,7 @@ module TCD
         def load_metadata
             # Parse ASCII header
             @header = Header.new(@file)
+            verify_checksum if @verify_checksum
 
             # Load lookup tables (handles interleaved string tables and binary data)
             # This also identifies the constituent data offset and station records offset
@@ -205,6 +209,13 @@ module TCD
 
             # Station records start after constituent names (tracked by lookup_tables)
             @stations_offset = @lookup_tables.station_records_offset
+        end
+
+        def verify_checksum
+            @header.verify_checksum!(@file)
+        rescue FormatError
+            close
+            raise
         end
 
         def load_stations
